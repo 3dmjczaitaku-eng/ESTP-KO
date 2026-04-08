@@ -35,7 +35,7 @@ export default function Hero() {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.8, type: 'spring', stiffness: 50 }
+      transition: { type: 'spring' as const, stiffness: 50, damping: 10 }
     },
   }
 
