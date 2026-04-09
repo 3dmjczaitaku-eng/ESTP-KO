@@ -5,6 +5,16 @@
 
 const REPLICATE_API_URL = 'https://api.replicate.com/v1'
 
+/**
+ * Default model version (Stable Diffusion 3).
+ * Can be overridden via REPLICATE_MODEL_VERSION environment variable.
+ */
+const DEFAULT_MODEL_VERSION =
+  'a9edd823462c3cedf3b66a3bab018e9c694057f747a2d2a280bd124df8d6f01b'
+
+/** Timeout for image download requests in milliseconds. */
+const DOWNLOAD_TIMEOUT_MS = 30_000
+
 export interface ImageGenerationParams {
   prompt: string;
   numOutputs?: number;
@@ -12,6 +22,8 @@ export interface ImageGenerationParams {
   height?: number;
   negativePrompt?: string;
   schedulerName?: string;
+  /** Polling interval in milliseconds. Defaults to 5000. Overridable for testing. */
+  pollIntervalMs?: number;
 }
 
 export interface ImageGenerationResult {
@@ -19,9 +31,20 @@ export interface ImageGenerationResult {
   error?: string;
 }
 
+export interface DownloadResult {
+  buffer?: ArrayBuffer;
+  error?: string;
+}
+
 /**
- * Generate images using Replicate API
- * Requires REPLICATE_API_TOKEN environment variable
+ * Generate images using Replicate API.
+ * Requires REPLICATE_API_TOKEN environment variable.
+ *
+ * The model version defaults to DEFAULT_MODEL_VERSION but can be
+ * overridden via the REPLICATE_MODEL_VERSION environment variable.
+ *
+ * API error details are never forwarded to the caller to prevent
+ * information leakage. Internal details are logged server-side only.
  */
 export async function generateImages(
   params: ImageGenerationParams
@@ -34,6 +57,10 @@ export async function generateImages(
     }
   }
 
+  const modelVersion =
+    process.env.REPLICATE_MODEL_VERSION || DEFAULT_MODEL_VERSION
+  const pollIntervalMs = params.pollIntervalMs ?? 5000
+
   try {
     // Create prediction
     const predictionRes = await fetch(
@@ -45,8 +72,7 @@ export async function generateImages(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          version:
-            'a9edd823462c3cedf3b66a3bab018e9c694057f747a2d2a280bd124df8d6f01b', // Stable Diffusion 3
+          version: modelVersion,
           input: {
             prompt: params.prompt,
             num_outputs: params.numOutputs || 1,
@@ -62,10 +88,12 @@ export async function generateImages(
     )
 
     if (!predictionRes.ok) {
-      const error = await predictionRes.json()
+      // Log details server-side only; never expose to caller
+      const detail = await predictionRes.json().catch(() => ({}))
+      console.error('[replicate] prediction creation failed:', detail)
       return {
         urls: [],
-        error: error.detail || 'Failed to create prediction',
+        error: 'Failed to create prediction',
       }
     }
 
@@ -79,7 +107,7 @@ export async function generateImages(
         prediction.status === 'processing') &&
       attempts < maxAttempts
     ) {
-      await new Promise((resolve) => setTimeout(resolve, 5000)) // Wait 5s
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
       attempts++
 
       const checkRes = await fetch(
@@ -110,9 +138,11 @@ export async function generateImages(
     }
 
     if (prediction.status === 'failed') {
+      // Log internal error server-side; return generic message to caller
+      console.error('[replicate] prediction failed:', prediction.error)
       return {
         urls: [],
-        error: prediction.error || 'Prediction failed',
+        error: 'Prediction failed',
       }
     }
 
@@ -121,9 +151,40 @@ export async function generateImages(
       error: 'Prediction timeout',
     }
   } catch (err) {
+    console.error('[replicate] unexpected error:', err)
     return {
       urls: [],
       error: err instanceof Error ? err.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Downloads an image from a URL and returns its ArrayBuffer.
+ * Uses AbortController to enforce a 30-second timeout.
+ * Returns a DownloadResult (never throws).
+ */
+export async function downloadImage(url: string): Promise<DownloadResult> {
+  if (!url) {
+    return { error: 'URL must not be empty' }
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(url, { signal: controller.signal })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      return { error: `HTTP ${response.status}: ${response.statusText}` }
+    }
+    const buffer = await response.arrayBuffer()
+    return { buffer }
+  } catch (err) {
+    clearTimeout(timeoutId)
+    return {
+      error: err instanceof Error ? err.message : 'Unknown download error',
     }
   }
 }

@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useIntersectionObserver } from '@/lib/hooks'
+import { useColorStore } from '@/lib/store'
 
 interface GalleryImage {
   src: string
@@ -16,17 +17,30 @@ export default function ProductGallery() {
   const [images, setImages] = useState<GalleryImage[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
 
+  const selectedColor = useColorStore((state) => state.selectedColor)
+  const getColorMeta = useColorStore((state) => state.getColorMeta)
+
   useEffect(() => {
-    // Load images from assets.json
-    fetch('/assets.json')
+    const colorMeta = getColorMeta(selectedColor)
+    const colorSlug = colorMeta?.slug ?? 'midnight-black'
+
+    // Reset slide index when color changes
+    setCurrentIndex(0)
+
+    // Load images for the selected color
+    fetch(`/assets.json?color=${encodeURIComponent(colorSlug)}`)
       .then((res) => res.json())
       .then((assets) => {
         setImages(assets.product_images || [])
       })
       .catch(() => {
-        setImages([])
+        // Fall back to default asset list without color param
+        fetch('/assets.json')
+          .then((res) => res.json())
+          .then((assets) => setImages(assets.product_images || []))
+          .catch(() => setImages([]))
       })
-  }, [])
+  }, [selectedColor, getColorMeta])
 
   const handleNext = () => {
     setCurrentIndex((prev) => (prev + 1) % images.length)
@@ -54,7 +68,7 @@ export default function ProductGallery() {
       {/* Main Image */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={currentIndex}
+          key={`${selectedColor}-${currentIndex}`}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}

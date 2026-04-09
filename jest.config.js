@@ -16,9 +16,15 @@ const customJestConfig = {
   collectCoverageFrom: [
     'app/**/*.{ts,tsx}',
     'lib/**/*.{ts,tsx}',
+    'components/**/*.{ts,tsx}',
+    'scripts/**/*.{ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
     '!**/.next/**',
+    '!scripts/__tests__/**',
+    // Boilerplate layout and standalone CLI scripts (no testable logic)
+    '!app/layout.tsx',
+    '!scripts/generate-assets.ts',
   ],
 }
 
