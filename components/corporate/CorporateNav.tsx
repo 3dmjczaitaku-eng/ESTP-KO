@@ -33,6 +33,7 @@ export default function CorporateNav() {
       opacity: 0,
       duration: 0.8,
       ease: 'power3.out',
+      delay: 1.2,
     })
   }, { scope: navRef })
 
