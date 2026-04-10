@@ -15,6 +15,7 @@ const customJestConfig = {
     '^three$': '<rootDir>/__mocks__/three.ts',
     // GSAP: use identity mock so ScrollTrigger calls are no-ops in tests
     '^gsap$': '<rootDir>/__mocks__/gsap.ts',
+    '^gsap/(.*)$': '<rootDir>/__mocks__/gsap.ts',
     '^@gsap/react$': '<rootDir>/__mocks__/@gsap/react.ts',
   },
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
