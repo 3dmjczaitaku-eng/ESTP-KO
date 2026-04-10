@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import CorporateNav from '@/components/corporate/CorporateNav'
+import ParticleBackground from '@/components/corporate/ParticleBackground'
 
 export const metadata: Metadata = {
   title: '3D&MUSIC JAM | クリエイティブ就労継続支援B型',
@@ -21,6 +22,8 @@ export default function CorporateLayout({
   return (
     // font-body / font-display は globals.css の CSS 変数で定義済み
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+      {/* Particle canvas fixed behind all sections — z-0, pointer-events-none */}
+      <ParticleBackground />
       <CorporateNav />
       <main id="main-content">{children}</main>
       <footer className="border-t border-[var(--color-border)] py-10 text-center text-sm text-[var(--color-text-muted)]">

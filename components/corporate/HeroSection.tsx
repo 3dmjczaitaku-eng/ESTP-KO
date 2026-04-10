@@ -1,18 +1,10 @@
-'use client'
-
-import dynamic from 'next/dynamic'
-
-// SSR 回避: Three.js は window/canvas に依存するためサーバー側では動かせない
-const HeroScene = dynamic(() => import('./HeroScene'), { ssr: false })
-
 export default function HeroSection() {
   return (
     <section
       className="relative flex items-center justify-center min-h-screen overflow-hidden"
       aria-label="ヒーローセクション"
     >
-      {/* Three.js パーティクル背景 (decorative) */}
-      <HeroScene />
+      {/* Particle background is provided by ParticleBackground in layout.tsx (position: fixed, z-0) */}
 
       {/* テキストオーバーレイ — z-index で前面に配置 */}
       <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
