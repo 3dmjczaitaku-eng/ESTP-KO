@@ -15,6 +15,12 @@ global.IntersectionObserver = class IntersectionObserver {
   unobserve() {}
 }
 
+// Mock WebGL canvas context (Three.js requires it even with __mocks__/three.ts)
+HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
+  getExtension: jest.fn(),
+  getParameter: jest.fn(),
+}))
+
 // Mock fetch for assets.json
 global.fetch = jest.fn(() =>
   Promise.resolve({
