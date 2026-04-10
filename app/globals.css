@@ -3,8 +3,6 @@
 /* ─── 3D&MUSIC JAM Design System ─────────────────────────────────────────── */
 /* Palette: Creative Neon  |  Fonts: Playfair Display + Inter                */
 
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@300;400;700&family=Inter:wght@300;400;500;700&display=swap');
-
 :root {
   /* Color tokens */
   --color-bg:          #08080F;
