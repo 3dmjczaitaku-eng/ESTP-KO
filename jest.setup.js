@@ -15,6 +15,21 @@ global.IntersectionObserver = class IntersectionObserver {
   unobserve() {}
 }
 
+// Mock matchMedia (jsdom does not implement it)
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: jest.fn((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+})
+
 // Mock WebGL canvas context (Three.js requires it even with __mocks__/three.ts)
 HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
   getExtension: jest.fn(),
