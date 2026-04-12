@@ -45,7 +45,8 @@ export class ComfyUIClient {
 
   async uploadImage(imageBuffer: Buffer, filename: string): Promise<string> {
     const form = new FormData()
-    form.append('image', new Blob([imageBuffer]), filename)
+    const ab = imageBuffer.buffer.slice(imageBuffer.byteOffset, imageBuffer.byteOffset + imageBuffer.byteLength) as ArrayBuffer
+    form.append('image', new Blob([ab]), filename)
     const res = await fetch(`${this.baseUrl}/upload/image`, { method: 'POST', body: form })
     if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
     const data = await res.json() as { name: string }
