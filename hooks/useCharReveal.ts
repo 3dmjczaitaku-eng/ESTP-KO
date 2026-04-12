@@ -39,8 +39,10 @@ export function useCharReveal(options: UseCharRevealOptions = {}) {
     const splits: SplitInstance[] = []
     let ctx: ReturnType<typeof gsap.context> | undefined
 
-    const init = async () => {
+    let cancelled = false
+    const initWithCancel = async () => {
       const { default: SplitType } = await import('split-type')
+      if (cancelled) return
 
       ctx = gsap.context(() => {
         targets.forEach(el => {
@@ -65,13 +67,14 @@ export function useCharReveal(options: UseCharRevealOptions = {}) {
       }, container)
     }
 
-    init()
+    initWithCancel()
 
     return () => {
+      cancelled = true
       splits.forEach(s => s.revert())
       ctx?.revert()
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps — options are read on mount only; re-running would re-split already-animated text
 
   return containerRef
 }

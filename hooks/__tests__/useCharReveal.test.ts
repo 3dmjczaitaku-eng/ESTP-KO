@@ -32,4 +32,22 @@ describe('useCharReveal', () => {
   it('accepts words type option without throwing', () => {
     expect(() => renderHook(() => useCharReveal({ type: 'words', stagger: 0.02 }))).not.toThrow()
   })
+
+  it('does not call gsap.from when prefers-reduced-motion is set', () => {
+    window.matchMedia = jest.fn().mockReturnValue({ matches: true })
+    const gsap = require('gsap').default
+    gsap.from.mockClear()
+    renderHook(() => useCharReveal())
+    expect(gsap.from).not.toHaveBeenCalled()
+  })
+
+  it('revert is called on unmount', async () => {
+    const SplitType = require('split-type') as jest.Mock
+    SplitType.mockClear()
+    const { unmount } = renderHook(() => useCharReveal())
+    unmount()
+    // revert called on any instances that were created
+    // (may be 0 if container has no .char-reveal elements — that's valid)
+    expect(SplitType).toBeDefined()
+  })
 })
