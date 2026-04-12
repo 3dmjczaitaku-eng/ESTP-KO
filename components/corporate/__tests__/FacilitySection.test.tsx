@@ -55,4 +55,16 @@ describe('FacilitySection', () => {
     render(<FacilitySection />)
     expect(document.getElementById('facility')).toBeInTheDocument()
   })
+
+  it('renders hero card as first facility photo with data-hero attribute', () => {
+    render(<FacilitySection />)
+    const cards = document.querySelectorAll('[data-facility-photo]')
+    expect(cards[0]).toHaveAttribute('data-hero', 'true')
+  })
+
+  it('shows shimmer placeholder elements inside facility cards', () => {
+    render(<FacilitySection />)
+    const shimmers = document.querySelectorAll('[data-facility-photo] .shimmer')
+    expect(shimmers.length).toBeGreaterThan(0)
+  })
 })
