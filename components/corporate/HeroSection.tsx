@@ -1,22 +1,33 @@
+'use client'
+
+import { useCharReveal } from '@/hooks/useCharReveal'
+
 export default function HeroSection() {
+  const charRef = useCharReveal({ type: 'words', stagger: 0.025 })
+
   return (
     <section
+      ref={charRef as React.RefObject<HTMLElement>}
       className="relative flex items-center justify-center min-h-screen overflow-hidden"
       aria-label="ヒーローセクション"
     >
+      {/* Floating blob backgrounds — z-0, clipped by overflow-hidden */}
+      <div className="blob blob-purple absolute -top-40 -left-40" aria-hidden="true" />
+      <div className="blob blob-lime absolute bottom-10 right-0" aria-hidden="true" />
+
       {/* Particle background is provided by ParticleBackground in layout.tsx (position: fixed, z-0) */}
 
       {/* テキストオーバーレイ — z-index で前面に配置 */}
       <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
-        <p className="text-sm font-medium tracking-widest uppercase text-[var(--color-accent)] opacity-80">
+        <p className="char-reveal text-sm font-medium tracking-widest uppercase text-[var(--color-accent)] opacity-80">
           Creative Workshop
         </p>
 
-        <h1 className="font-display text-6xl md:text-8xl font-bold leading-none text-gradient-purple">
+        <h1 className="char-reveal font-display text-6xl md:text-8xl font-bold leading-none text-gradient-purple">
           3D&MUSIC JAM
         </h1>
 
-        <p className="text-base md:text-lg text-[var(--color-text-muted)] max-w-lg leading-relaxed">
+        <p className="char-reveal text-base md:text-lg text-[var(--color-text-muted)] max-w-lg leading-relaxed">
           クリエイティブな就労継続支援B型事業所。
           <br />
           3Dアートと音楽で、あなたの表現をカタチにする場所。

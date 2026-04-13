@@ -1,7 +1,9 @@
 'use client'
 
+import React from 'react'
 import { useState } from 'react'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { useCharReveal } from '@/hooks/useCharReveal'
 
 // ── Hub card data ──────────────────────────────────────────────────────────────
 
@@ -184,7 +186,7 @@ function HubCard({ card }: { card: HubCard }) {
     <div
       data-hub-card
       data-hub-card-id={card.id}
-      className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden flex flex-col"
+      className="card-glow rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden flex flex-col"
     >
       {/* Card header — always visible */}
       <button
@@ -238,11 +240,16 @@ function HubCard({ card }: { card: HubCard }) {
 
 export default function InfoHubSection() {
   const sectionRef = useScrollReveal('.reveal')
-  const ref = sectionRef as React.RefObject<HTMLElement>
+  const charRef = useCharReveal({ type: 'words', stagger: 0.025 })
+
+  const setRef = (el: HTMLElement | null) => {
+    ;(sectionRef as React.MutableRefObject<HTMLElement | null>).current = el
+    ;(charRef as React.MutableRefObject<HTMLElement | null>).current = el
+  }
 
   return (
     <section
-      ref={ref}
+      ref={setRef}
       aria-label="利用情報ハブ"
       role="region"
       id="info"
@@ -254,10 +261,10 @@ export default function InfoHubSection() {
           <p className="reveal text-xs font-medium tracking-widest uppercase text-[var(--color-accent)] mb-3">
             Info Hub
           </p>
-          <h2 className="reveal font-display text-4xl md:text-5xl font-bold text-gradient-purple mb-4">
+          <h2 className="char-reveal font-display text-4xl md:text-5xl font-bold text-gradient-purple mb-4">
             もっと知る
           </h2>
-          <p className="reveal text-[var(--color-text-muted)] max-w-lg mx-auto">
+          <p className="char-reveal text-[var(--color-text-muted)] max-w-lg mx-auto">
             気になるカードをタップして詳細をチェックしてください。
           </p>
         </div>

@@ -1,7 +1,9 @@
 'use client'
 
+import React from 'react'
 import { useState } from 'react'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { useCharReveal } from '@/hooks/useCharReveal'
 
 // ── Form field sub-component ───────────────────────────────────────────────────
 
@@ -35,7 +37,12 @@ const inputClass =
 export default function ContactSection() {
   const [submitted, setSubmitted] = useState(false)
   const sectionRef = useScrollReveal('.reveal')
-  const ref = sectionRef as React.RefObject<HTMLElement>
+  const charRef = useCharReveal({ type: 'words', stagger: 0.025 })
+
+  const setRef = (el: HTMLElement | null) => {
+    ;(sectionRef as React.MutableRefObject<HTMLElement | null>).current = el
+    ;(charRef as React.MutableRefObject<HTMLElement | null>).current = el
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -46,7 +53,7 @@ export default function ContactSection() {
 
   return (
     <section
-      ref={ref}
+      ref={setRef}
       aria-label="お問い合わせ"
       role="region"
       id="contact"
@@ -56,10 +63,10 @@ export default function ContactSection() {
         <p className="reveal text-xs font-medium tracking-widest uppercase text-[var(--color-accent)] mb-3">
           Contact
         </p>
-        <h2 className="reveal font-display text-4xl md:text-5xl font-bold text-gradient-purple mb-4">
+        <h2 className="char-reveal font-display text-4xl md:text-5xl font-bold text-gradient-purple mb-4">
           お問い合わせ
         </h2>
-        <p className="reveal text-[var(--color-text-muted)] max-w-lg mx-auto">
+        <p className="char-reveal text-[var(--color-text-muted)] max-w-lg mx-auto">
           見学・体験のご予約、その他ご質問はこちらからどうぞ。
           お気軽にご連絡ください。
         </p>

@@ -1,6 +1,8 @@
 'use client'
 
+import React from 'react'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { useCharReveal } from '@/hooks/useCharReveal'
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -67,7 +69,7 @@ function StaffCard({ member }: { member: StaffMember }) {
   return (
     <div
       data-staff-card
-      className="relative rounded-2xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] group hover:border-[var(--color-primary)]/50 transition-colors duration-300"
+      className="card-glow relative rounded-2xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] group hover:border-[var(--color-primary)]/50 transition-colors duration-300"
     >
       {/* Media */}
       <div className="relative w-full aspect-square">
@@ -123,11 +125,16 @@ function StaffCard({ member }: { member: StaffMember }) {
 
 export default function StaffSection() {
   const sectionRef = useScrollReveal('.reveal')
-  const ref = sectionRef as React.RefObject<HTMLElement>
+  const charRef = useCharReveal({ type: 'words', stagger: 0.025 })
+
+  const setRef = (el: HTMLElement | null) => {
+    ;(sectionRef as React.MutableRefObject<HTMLElement | null>).current = el
+    ;(charRef as React.MutableRefObject<HTMLElement | null>).current = el
+  }
 
   return (
     <section
-      ref={ref}
+      ref={setRef}
       aria-label="スタッフ紹介"
       role="region"
       id="staff"
@@ -138,10 +145,10 @@ export default function StaffSection() {
         <p className="reveal text-xs font-medium tracking-widest uppercase text-[var(--color-accent)] mb-3">
           Our Team
         </p>
-        <h2 className="reveal font-display text-4xl md:text-5xl font-bold text-gradient-purple mb-4">
+        <h2 className="char-reveal font-display text-4xl md:text-5xl font-bold text-gradient-purple mb-4">
           スタッフ紹介
         </h2>
-        <p className="reveal text-[var(--color-text-muted)] max-w-lg mx-auto">
+        <p className="char-reveal text-[var(--color-text-muted)] max-w-lg mx-auto">
           各分野のプロが、あなたの「作りたい」を全力でサポートします。
         </p>
       </div>

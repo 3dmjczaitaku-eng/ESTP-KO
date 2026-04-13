@@ -1,7 +1,9 @@
 'use client'
 
+import React from 'react'
 import { useState, useCallback } from 'react'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { useCharReveal } from '@/hooks/useCharReveal'
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -146,11 +148,16 @@ function CourseRow({ course, index }: CourseRowProps) {
 
 export default function ServicesSection() {
   const sectionRef = useScrollReveal('.reveal')
-  const ref = sectionRef as React.RefObject<HTMLElement>
+  const charRef = useCharReveal({ type: 'words', stagger: 0.025 })
+
+  const setRef = (el: HTMLElement | null) => {
+    ;(sectionRef as React.MutableRefObject<HTMLElement | null>).current = el
+    ;(charRef as React.MutableRefObject<HTMLElement | null>).current = el
+  }
 
   return (
     <section
-      ref={ref}
+      ref={setRef}
       aria-label="コース紹介"
       role="region"
       id="services"
@@ -163,7 +170,7 @@ export default function ServicesSection() {
             Our Courses
           </p>
           <div className="reveal flex items-end justify-between gap-4 flex-wrap">
-            <h2 className="font-display text-4xl md:text-5xl font-bold text-gradient-purple">
+            <h2 className="char-reveal font-display text-4xl md:text-5xl font-bold text-gradient-purple">
               コース紹介
             </h2>
             <p className="text-sm text-[var(--color-text-muted)] max-w-xs text-right hidden md:block">

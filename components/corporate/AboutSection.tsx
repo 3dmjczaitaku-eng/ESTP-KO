@@ -1,7 +1,8 @@
 'use client'
 
-import { useRef } from 'react'
+import React from 'react'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { useCharReveal } from '@/hooks/useCharReveal'
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -30,31 +31,40 @@ const PILLARS = [
 
 export default function AboutSection() {
   const sectionRef = useScrollReveal('.reveal')
-  const ref = sectionRef as React.RefObject<HTMLElement>
+  const charRef = useCharReveal({ type: 'words', stagger: 0.025 })
+
+  const setRef = (el: HTMLElement | null) => {
+    ;(sectionRef as React.MutableRefObject<HTMLElement | null>).current = el
+    ;(charRef as React.MutableRefObject<HTMLElement | null>).current = el
+  }
 
   return (
     <section
-      ref={ref}
+      ref={setRef}
       aria-label="事業所について"
       role="region"
       id="about"
-      className="py-24 px-6 relative z-10"
+      className="py-24 px-6 relative z-10 overflow-hidden"
     >
-      <div className="max-w-5xl mx-auto">
+      {/* Floating blob backgrounds */}
+      <div className="blob blob-lime absolute -top-20 right-10" aria-hidden="true" />
+      <div className="blob blob-purple absolute bottom-0 -left-20" aria-hidden="true" />
+
+      <div className="max-w-5xl mx-auto relative z-10">
         {/* Eyebrow */}
         <p className="reveal text-xs font-medium tracking-widest uppercase text-[var(--color-accent)] mb-4 text-center">
           About
         </p>
 
         {/* Main headline */}
-        <h2 className="reveal font-display text-4xl md:text-6xl font-bold text-center mb-6 leading-tight">
+        <h2 className="char-reveal font-display text-4xl md:text-6xl font-bold text-center mb-6 leading-tight">
           <span className="text-gradient-lime">クリエイティブを、</span>
           <br />
           <span className="text-[var(--color-text)]">生きる力に。</span>
         </h2>
 
         {/* Lead copy */}
-        <p className="reveal text-center text-[var(--color-text-muted)] max-w-2xl mx-auto mb-4 leading-relaxed">
+        <p className="char-reveal text-center text-[var(--color-text-muted)] max-w-2xl mx-auto mb-4 leading-relaxed">
           3D&MUSIC JAM は、障害のある方が「好き」を軸に働き・学ぶ場所です。
           就労継続支援B型として、3Dアートと音楽を中心とした創作活動を支援しています。
         </p>
@@ -71,7 +81,7 @@ export default function AboutSection() {
             <div
               key={pillar.label}
               data-pillar
-              className="reveal rounded-2xl p-8 bg-[var(--color-surface)] border border-[var(--color-border)] relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300"
+              className="reveal card-glow rounded-2xl p-8 bg-[var(--color-surface)] border border-[var(--color-border)] relative overflow-hidden group"
             >
               {/* Accent bar */}
               <div
@@ -86,7 +96,7 @@ export default function AboutSection() {
                 {pillar.label}
               </p>
               <h3
-                className="font-display text-2xl font-bold mb-3 text-[var(--color-text)]"
+                className="char-reveal font-display text-2xl font-bold mb-3 text-[var(--color-text)]"
               >
                 {pillar.title}
               </h3>
