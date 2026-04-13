@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useScrollReveal } from '@/hooks/useScrollReveal'
 
 // ── Form field sub-component ───────────────────────────────────────────────────
 
@@ -33,6 +34,8 @@ const inputClass =
 
 export default function ContactSection() {
   const [submitted, setSubmitted] = useState(false)
+  const sectionRef = useScrollReveal('.reveal')
+  const ref = sectionRef as React.RefObject<HTMLElement>
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -43,19 +46,20 @@ export default function ContactSection() {
 
   return (
     <section
+      ref={ref}
       aria-label="お問い合わせ"
       role="region"
       id="contact"
       className="py-24 px-6 relative z-10 bg-[var(--color-bg)]/90"
     >
       <div className="max-w-2xl mx-auto mb-12 text-center">
-        <p className="text-xs font-medium tracking-widest uppercase text-[var(--color-accent)] mb-3">
+        <p className="reveal text-xs font-medium tracking-widest uppercase text-[var(--color-accent)] mb-3">
           Contact
         </p>
-        <h2 className="font-display text-4xl md:text-5xl font-bold text-gradient-purple mb-4">
+        <h2 className="reveal font-display text-4xl md:text-5xl font-bold text-gradient-purple mb-4">
           お問い合わせ
         </h2>
-        <p className="text-[var(--color-text-muted)] max-w-lg mx-auto">
+        <p className="reveal text-[var(--color-text-muted)] max-w-lg mx-auto">
           見学・体験のご予約、その他ご質問はこちらからどうぞ。
           お気軽にご連絡ください。
         </p>

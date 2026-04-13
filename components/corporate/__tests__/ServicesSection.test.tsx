@@ -1,17 +1,18 @@
 /**
- * ServicesSection — TDD tests (Phase 3b-1)
+ * ServicesSection — TDD tests (Phase 3d: numbered list + cursor-follow video)
  *
  * Spec:
  * - Renders section with aria-label="コース紹介"
- * - Renders heading "コース紹介"
- * - Renders exactly 5 course cards
- * - Each card has a title, description, and tag chip
- * - Cards with Vimeo IDs render an <iframe>; others render a placeholder
+ * - Renders h2 heading "コース紹介"
+ * - Renders exactly 5 course rows (data-service-card)
+ * - Each row has an h3 title, description, and data-tag span
+ * - Default state: no iframes in document
+ * - Hovering a row with vimeoId: iframe appears in document (cursor-follow)
+ * - Mouse leave: iframe removed from document
  * - CTA link points to #contact
- * - Accessibility: section role="region"
  */
 
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import ServicesSection from '../ServicesSection'
 
 describe('ServicesSection', () => {
@@ -25,47 +26,59 @@ describe('ServicesSection', () => {
     expect(screen.getByRole('heading', { level: 2, name: /コース紹介/i })).toBeInTheDocument()
   })
 
-  it('renders exactly 5 course cards', () => {
+  it('renders exactly 5 course rows', () => {
     render(<ServicesSection />)
-    const cards = document.querySelectorAll('[data-service-card]')
-    expect(cards).toHaveLength(5)
+    expect(document.querySelectorAll('[data-service-card]')).toHaveLength(5)
   })
 
-  it('each card has a heading', () => {
+  it('each row has an h3 heading', () => {
     render(<ServicesSection />)
-    const headings = document.querySelectorAll('[data-service-card] h3')
-    expect(headings).toHaveLength(5)
+    expect(document.querySelectorAll('[data-service-card] h3')).toHaveLength(5)
   })
 
-  it('each card has a description', () => {
+  it('each row has a description paragraph', () => {
     render(<ServicesSection />)
-    const descs = document.querySelectorAll('[data-service-card] p')
-    expect(descs).toHaveLength(5)
+    expect(document.querySelectorAll('[data-service-card] p')).toHaveLength(5)
   })
 
-  it('each card has a tag chip', () => {
+  it('each row has a data-tag element', () => {
     render(<ServicesSection />)
-    const tags = document.querySelectorAll('[data-service-card] [data-tag]')
-    expect(tags).toHaveLength(5)
+    expect(document.querySelectorAll('[data-service-card] [data-tag]')).toHaveLength(5)
   })
 
-  it('cards with Vimeo ID render an iframe', () => {
+  it('no iframes visible by default', () => {
     render(<ServicesSection />)
-    // At least one card should have a Vimeo iframe (illustration/video/music courses)
-    const iframes = document.querySelectorAll('[data-service-card] iframe')
-    expect(iframes.length).toBeGreaterThan(0)
+    expect(document.querySelectorAll('iframe')).toHaveLength(0)
   })
 
-  it('cards without Vimeo ID render a Coming Soon placeholder', () => {
+  it('hovering a row with vimeoId mounts the floating iframe', () => {
     render(<ServicesSection />)
-    const placeholders = document.querySelectorAll('[data-service-card] [data-placeholder]')
-    expect(placeholders.length).toBeGreaterThan(0)
+    const firstRow = document.querySelector('[data-service-card]')!
+    fireEvent.mouseEnter(firstRow)
+    const iframe = document.querySelector('iframe')
+    expect(iframe).toBeInTheDocument()
+    expect(iframe?.src).toContain('vimeo.com')
+  })
+
+  it('mouse leave removes the floating iframe', () => {
+    render(<ServicesSection />)
+    const firstRow = document.querySelector('[data-service-card]')!
+    fireEvent.mouseEnter(firstRow)
+    fireEvent.mouseLeave(firstRow)
+    expect(document.querySelector('iframe')).not.toBeInTheDocument()
+  })
+
+  it('hovering last 2 rows (no vimeoId) does not mount iframe', () => {
+    render(<ServicesSection />)
+    const rows = document.querySelectorAll('[data-service-card]')
+    // rows[3] = Web制作, rows[4] = AI活用 — no vimeoId
+    fireEvent.mouseEnter(rows[3])
+    expect(document.querySelector('iframe')).not.toBeInTheDocument()
   })
 
   it('CTA link points to #contact', () => {
     render(<ServicesSection />)
-    const cta = screen.getByRole('link', { name: /見学・体験を申し込む/i })
-    expect(cta).toHaveAttribute('href', '#contact')
+    expect(screen.getByRole('link', { name: /見学・体験を申し込む/i })).toHaveAttribute('href', '#contact')
   })
 
   it.each([
@@ -74,7 +87,7 @@ describe('ServicesSection', () => {
     '音楽・DTM',
     'Web制作',
     'AI活用',
-  ])('renders "%s" course', (title) => {
+  ])('renders "%s" course title', (title) => {
     render(<ServicesSection />)
     expect(screen.getByRole('heading', { level: 3, name: title })).toBeInTheDocument()
   })

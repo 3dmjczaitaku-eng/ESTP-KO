@@ -1,5 +1,8 @@
 'use client'
 
+import { useState, useCallback } from 'react'
+import { useScrollReveal } from '@/hooks/useScrollReveal'
+
 // ── Data ──────────────────────────────────────────────────────────────────────
 
 interface CourseCard {
@@ -51,111 +54,146 @@ const COURSES: CourseCard[] = [
   },
 ]
 
-// ── Sub-component ──────────────────────────────────────────────────────────────
+// ── Row component ──────────────────────────────────────────────────────────────
 
-function CourseCardItem({ course }: { course: CourseCard }) {
+interface CourseRowProps {
+  course: CourseCard
+  index: number
+}
+
+function CourseRow({ course, index }: CourseRowProps) {
+  const [hovered, setHovered] = useState(false)
+  const [pos, setPos] = useState({ x: 0, y: 0 })
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    setPos({ x: e.clientX, y: e.clientY })
+  }, [])
+
   return (
-    <div
-      data-service-card
-      className="relative flex flex-col rounded-2xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] group hover:border-[var(--color-primary)]/50 transition-colors duration-300"
-    >
-      {/* Media */}
-      <div className="relative w-full aspect-video flex-shrink-0">
-        {course.vimeoId ? (
-          <iframe
-            src={`https://player.vimeo.com/video/${course.vimeoId}?autoplay=1&loop=1&muted=1&background=1`}
-            className="absolute inset-0 w-full h-full"
-            allow="autoplay; fullscreen"
-            title={course.title}
-            loading="lazy"
-          />
-        ) : (
-          <div
-            data-placeholder
-            className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-bg)]"
-          >
-            <span className="text-[var(--color-text-muted)] text-xs tracking-widest uppercase">
-              Coming Soon
-            </span>
-          </div>
-        )}
-
-        {/* Tag chip */}
-        <span
-          data-tag
-          className="absolute top-3 left-3 px-2 py-0.5 rounded-full text-xs font-medium bg-black/60 text-[var(--color-accent)] border border-[var(--color-accent)]/30 backdrop-blur-sm"
-        >
-          {course.tag}
+    <>
+      <div
+        data-service-card
+        className="group relative flex items-start md:items-center gap-6 py-8 border-b border-[var(--color-border)] cursor-default transition-colors duration-200 hover:bg-[var(--color-surface)]/30 px-2 -mx-2 rounded-lg"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onMouseMove={handleMouseMove}
+      >
+        {/* Index number */}
+        <span className="flex-shrink-0 font-mono text-xs text-[var(--color-text-muted)]/50 w-7 pt-1 md:pt-0">
+          {String(index + 1).padStart(2, '0')}
         </span>
-      </div>
 
-      {/* Info */}
-      <div className="p-5 flex flex-col gap-3 flex-1">
-        <h3 className="font-display text-lg font-bold text-[var(--color-text)]">
-          {course.title}
-        </h3>
-        <p className="text-sm text-[var(--color-text-muted)] leading-relaxed flex-1">
-          {course.description}
-        </p>
+        {/* Title + description */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-display text-xl md:text-2xl font-bold text-[var(--color-text)] group-hover:text-[var(--color-primary)] transition-colors duration-300 leading-tight">
+            {course.title}
+          </h3>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1 leading-relaxed line-clamp-2">
+            {course.description}
+          </p>
+        </div>
 
-        {/* Skill tags */}
-        <div className="flex flex-wrap gap-2 pt-1">
+        {/* Skill tags — desktop only */}
+        <div className="hidden lg:flex flex-wrap gap-1.5 max-w-[220px] justify-end flex-shrink-0">
           {course.skills.map((skill) => (
             <span
               key={skill}
-              className="px-2 py-0.5 rounded-md text-xs bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20"
+              className="px-2 py-0.5 rounded text-[11px] bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20"
             >
               {skill}
             </span>
           ))}
         </div>
+
+        {/* Tag label + arrow */}
+        <div className="flex-shrink-0 flex items-center gap-3">
+          <span
+            data-tag
+            className="hidden sm:block text-xs font-mono tracking-wider text-[var(--color-accent)]"
+          >
+            {course.tag}
+          </span>
+          <span className="text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200 text-sm">
+            ↗
+          </span>
+        </div>
       </div>
-    </div>
+
+      {/* Floating Vimeo preview — follows cursor */}
+      {hovered && course.vimeoId && (
+        <div
+          className="fixed z-50 w-72 aspect-video rounded-xl overflow-hidden shadow-2xl pointer-events-none animate-[fadeIn_0.25s_ease]"
+          style={{
+            left: pos.x + 24,
+            top: pos.y - 90,
+            boxShadow: '0 0 40px rgba(123, 47, 255, 0.4)',
+          }}
+          aria-hidden="true"
+        >
+          <iframe
+            src={`https://player.vimeo.com/video/${course.vimeoId}?autoplay=1&loop=1&muted=1&background=1`}
+            className="w-full h-full"
+            allow="autoplay; fullscreen"
+            title={course.title}
+          />
+        </div>
+      )}
+    </>
   )
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ServicesSection() {
+  const sectionRef = useScrollReveal('.reveal')
+  const ref = sectionRef as React.RefObject<HTMLElement>
+
   return (
     <section
+      ref={ref}
       aria-label="コース紹介"
       role="region"
       id="services"
       className="py-24 px-6 relative z-10 bg-[var(--color-bg)]/90"
     >
-      {/* Header */}
-      <div className="max-w-5xl mx-auto mb-12 text-center">
-        <p className="text-xs font-medium tracking-widest uppercase text-[var(--color-accent)] mb-3">
-          Our Courses
-        </p>
-        <h2 className="font-display text-4xl md:text-5xl font-bold text-gradient-purple mb-4">
-          コース紹介
-        </h2>
-        <p className="text-[var(--color-text-muted)] max-w-lg mx-auto">
-          未経験から始められる5つのクリエイティブコース。
-          あなたの「好き」を仕事に繋げます。
-        </p>
-      </div>
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="mb-12">
+          <p className="reveal text-xs font-medium tracking-widest uppercase text-[var(--color-accent)] mb-3">
+            Our Courses
+          </p>
+          <div className="reveal flex items-end justify-between gap-4 flex-wrap">
+            <h2 className="font-display text-4xl md:text-5xl font-bold text-gradient-purple">
+              コース紹介
+            </h2>
+            <p className="text-sm text-[var(--color-text-muted)] max-w-xs text-right hidden md:block">
+              未経験から始められる<br />5つのクリエイティブコース
+            </p>
+          </div>
+        </div>
 
-      {/* Course grid */}
-      <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {COURSES.map((course) => (
-          <CourseCardItem key={course.title} course={course} />
-        ))}
-      </div>
+        {/* Top divider */}
+        <div className="reveal border-t border-[var(--color-border)]" />
 
-      {/* CTA */}
-      <div className="mt-14 text-center">
-        <p className="text-sm text-[var(--color-text-muted)] mb-4">
-          どのコースも無料体験できます。まずはお気軽にどうぞ。
-        </p>
-        <a
-          href="#contact"
-          className="inline-block px-8 py-3 rounded-full bg-[var(--color-primary)] text-white font-medium hover:opacity-90 transition-opacity"
-        >
-          見学・体験を申し込む
-        </a>
+        {/* Course list */}
+        <div className="reveal">
+          {COURSES.map((course, i) => (
+            <CourseRow key={course.title} course={course} index={i} />
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div className="reveal mt-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <p className="text-sm text-[var(--color-text-muted)]">
+            どのコースも無料体験できます。まずはお気軽にどうぞ。
+          </p>
+          <a
+            href="#contact"
+            className="flex-shrink-0 inline-block px-8 py-3 rounded-full bg-[var(--color-primary)] text-white font-medium hover:opacity-90 transition-opacity"
+          >
+            見学・体験を申し込む
+          </a>
+        </div>
       </div>
     </section>
   )
