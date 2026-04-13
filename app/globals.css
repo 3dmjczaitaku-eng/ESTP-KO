@@ -1,26 +1,200 @@
 @import "tailwindcss";
 
+/* ─── 3D&MUSIC JAM Design System ─────────────────────────────────────────── */
+/* Palette: Electric Purple × Lime  |  Fonts: Playfair Display + Inter       */
+/* Ref: yaoya.io (#360E96 purple), pop lime green accent                     */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Core tokens */
+  --color-bg:          #0A0118;   /* ultra-dark violet */
+  --color-surface:     #140830;   /* dark violet surface */
+  --color-border:      rgba(123, 47, 255, 0.2);
+
+  --color-primary:     #7B2FFF;   /* electric purple (vivified #360E96) */
+  --color-accent:      #84FF00;   /* lime green (yaoya.io stone-lime) */
+  --color-text:        #F8FAFC;
+  --color-text-muted:  #94A3B8;
+
+  /* Pop palette for section accents */
+  --color-pop-pink:    #F472B6;
+  --color-pop-yellow:  #FBBF24;
+  --color-pop-green:   #34D399;
+  --color-pop-cyan:    #22D3EE;
+
+  /* Glow effects */
+  --glow-primary:      0 0 32px rgba(123, 47, 255, 0.6);
+  --glow-accent:       0 0 32px rgba(132, 255, 0, 0.5);
+  --glow-card:         0 0 32px rgba(123, 47, 255, 0.45), 0 12px 40px rgba(0, 0, 0, 0.4);
+  --shimmer-highlight: rgba(123, 47, 255, 0.12);
+
+  /* Typography */
+  --font-display:      'Playfair Display', Georgia, serif;
+  --font-body:         'Inter', system-ui, sans-serif;
+
+  /* Spacing scale */
+  --section-gap:       8rem;
+
+  /* Motion (respects prefers-reduced-motion) */
+  --duration-fast:     0.2s;
+  --duration-base:     0.6s;
+  --duration-slow:     1.2s;
+  --ease-out-expo:     cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Tailwind design token bridge */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --font-sans:        var(--font-body);
+  --font-display:     var(--font-display);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Base reset ─────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-weight: 300;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Accessibility: reduce motion ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Utility classes ───────────────────────────────────────────────────── */
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.text-gradient-purple {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-pop-cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-lime {
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-pop-green) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* .reveal — GSAP ScrollTrigger handles opacity/transform; no CSS base needed */
+
+/* ─── Keyframes ──────────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.glow-purple {
+  box-shadow: var(--glow-primary);
+}
+
+.glow-cyan {
+  box-shadow: var(--glow-accent);
+}
+
+/* ─── Phase 4a: Dynamic UI Utilities ──────────────────────────────────────── */
+
+/* Floating blob animations */
+@keyframes blobFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(60px, -40px) scale(1.1); }
+  66%       { transform: translate(-30px, 30px) scale(0.95); }
+}
+@keyframes blobFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(-50px, 60px) scale(1.08); }
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+.blob-purple {
+  width: 500px; height: 500px;
+  background: var(--color-primary);
+  opacity: 0.18;
+  animation: blobFloat1 12s ease-in-out infinite;
+}
+.blob-lime {
+  width: 350px; height: 350px;
+  background: var(--color-accent);
+  opacity: 0.12;
+  animation: blobFloat2 16s ease-in-out infinite;
+}
+
+/* Card glow hover */
+.card-glow {
+  transition: transform 0.3s var(--ease-out-expo),
+              box-shadow 0.3s ease;
+}
+.card-glow:hover {
+  transform: scale(1.03) translateY(-4px);
+  box-shadow: var(--glow-card);
+}
+
+/* Section accent line */
+.accent-line {
+  height: 2px;
+  width: 48px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 0.6s var(--ease-out-expo);
+  border-radius: 1px;
+}
+.accent-line.is-revealed {
+  transform: scaleX(1);
+}
+
+/* Shimmer placeholder for facility cards */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 25%,
+    var(--shimmer-highlight) 50%,
+    var(--color-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.2s infinite linear;
+}
+
+/* char-reveal: SplitType で分割された要素の初期状態 */
+.char-reveal [data-word],
+.char-reveal [data-char] {
+  display: inline-block;
+  will-change: transform, opacity;
 }

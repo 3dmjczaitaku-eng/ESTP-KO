@@ -4,20 +4,28 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "preview:dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "jest --watch",
     "test:ci": "jest --ci --coverage",
-    "generate:assets": "ts-node scripts/generate-assets.ts"
+    "generate:assets": "ts-node scripts/generate-assets.ts",
+    "generate:facility-video": "ts-node --project tsconfig.scripts.json scripts/generate-facility-video.ts"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "cloudinary": "^2.9.0",
+    "gsap": "^3.14.2",
     "next": "16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "split-type": "^0.3.4",
+    "three": "^0.183.2",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.88.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -25,6 +33,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.183.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "framer-motion": "^12.38.0",

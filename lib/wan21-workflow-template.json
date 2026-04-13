@@ -1,0 +1,82 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "PLACEHOLDER_IMAGE",
+      "upload": "image"
+    }
+  },
+  "2": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "clip_vision_h.safetensors"
+    }
+  },
+  "3": {
+    "class_type": "WanImageToVideo",
+    "inputs": {
+      "model": ["4", 0],
+      "positive": ["5", 0],
+      "negative": ["6", 0],
+      "image": ["1", 0],
+      "clip_vision": ["2", 0],
+      "num_frames": 81,
+      "fps": 24,
+      "steps": 20,
+      "cfg": 6.0,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1.0,
+      "seed": 42
+    }
+  },
+  "4": {
+    "class_type": "WanModelLoader",
+    "inputs": {
+      "model": "wan2.1_i2v_480p_14B_fp8_e4m3fn.safetensors",
+      "precision": "fp8_e4m3fn"
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PLACEHOLDER_POSITIVE",
+      "clip": ["4", 1]
+    }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PLACEHOLDER_NEGATIVE",
+      "clip": ["4", 1]
+    }
+  },
+  "7": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "wan_2.1_vae.safetensors"
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["7", 0]
+    }
+  },
+  "9": {
+    "class_type": "VHS_VideoCombine",
+    "inputs": {
+      "images": ["8", 0],
+      "frame_rate": 24,
+      "loop_count": 0,
+      "filename_prefix": "PLACEHOLDER_PREFIX",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": true,
+      "pingpong": false,
+      "save_output": true
+    }
+  }
+}
