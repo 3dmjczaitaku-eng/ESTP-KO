@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: '3D&MUSIC JAM | 就労継続支援B型 × クリエイティブ制作',
+  title: '就労継続支援B型 × クリエイティブ制作',
   description:
     '千葉市のクリエイティブな就労継続支援B型事業所。3Dアート・音楽・映像制作を通じて、障害のある方が「好き」を軸に働き・学ぶ場所です。受給者証をお持ちの方は自己負担0円でご利用いただけます。',
   openGraph: {
