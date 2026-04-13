@@ -18,8 +18,37 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Claude Code Adoption Demo',
-  description: 'iPhone 17 Pro product site — built with Claude Code',
+  title: {
+    default: '3D&MUSIC JAM | 就労継続支援B型 × クリエイティブ制作',
+    template: '%s | 3D&MUSIC JAM',
+  },
+  description:
+    '千葉市のクリエイティブな就労継続支援B型事業所。3Dアート・音楽・映像制作を通じて、障害のある方が「好き」を軸に働き・学ぶ場所です。受給者証をお持ちの方は自己負担0円でご利用いただけます。',
+  keywords: [
+    '就労継続支援B型',
+    '千葉市',
+    '3Dアート',
+    '音楽制作',
+    'DTM',
+    'クリエイティブ',
+    '障害者支援',
+    '就労支援',
+  ],
+  authors: [{ name: '3D&MUSIC JAM' }],
+  creator: '3D&MUSIC JAM',
+  metadataBase: new URL('https://eager-varahamihira.vercel.app'),
+  openGraph: {
+    type: 'website',
+    locale: 'ja_JP',
+    siteName: '3D&MUSIC JAM',
+  },
+  twitter: {
+    card: 'summary_large_image',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({
