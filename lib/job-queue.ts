@@ -84,3 +84,6 @@ class JobQueue {
 
 // Singleton instance
 export const jobQueue = new JobQueue();
+
+// Export class for testing
+export { JobQueue };
