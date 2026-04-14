@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import StatusMessage from './StatusMessage';
 
 interface FileInputProps {
@@ -11,6 +11,8 @@ interface FileInputProps {
   multiple?: boolean;
   isLoading?: boolean;
   selectedFileName?: string;
+  resetTrigger?: number;
+  error?: string | null;
 }
 
 export default function FileInput({
@@ -21,44 +23,19 @@ export default function FileInput({
   multiple = false,
   isLoading = false,
   selectedFileName,
+  resetTrigger,
+  error,
 }: FileInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const validateFile = (file: File): boolean => {
-    if (maxSize && file.size > maxSize) {
-      const sizeMB = (maxSize / (1024 * 1024)).toFixed(2);
-      setError(`File size exceeds ${sizeMB}MB limit`);
-      onError?.(`File size exceeds ${sizeMB}MB limit`);
-      return false;
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.value = '';
     }
-
-    const acceptedTypes = accept.split(',').map((type) => type.trim());
-    const isValidType = acceptedTypes.some((type) => {
-      if (type.endsWith('/*')) {
-        const prefix = type.replace('/*', '');
-        return file.type.startsWith(prefix);
-      }
-      return file.type === type;
-    });
-
-    if (!isValidType) {
-      setError(`Invalid file type. Accepted: ${accept}`);
-      onError?.(`Invalid file type. Accepted: ${accept}`);
-      return false;
-    }
-
-    return true;
-  };
+  }, [resetTrigger]);
 
   const handleFileSelect = (file: File) => {
-    setError(null);
-
-    if (!validateFile(file)) {
-      return;
-    }
-
     onFileSelect(file);
   };
 

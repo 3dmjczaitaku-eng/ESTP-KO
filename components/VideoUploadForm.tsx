@@ -25,6 +25,7 @@ export default function VideoUploadForm({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadBytes, setUploadBytes] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [resetTrigger, setResetTrigger] = useState(0);
   const conversionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const uploadIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -35,13 +36,14 @@ export default function VideoUploadForm({
 
   const handleError = (error: string) => {
     setErrorMessage(error);
+    setStatus('failed');
     onError?.(error);
   };
 
   const validateFile = (file: File): boolean => {
     if (maxFileSize && file.size > maxFileSize) {
-      const sizeMB = (maxFileSize / (1024 * 1024)).toFixed(0);
-      const error = `File size exceeds ${sizeMB}MB limit`;
+      const sizeMB = (maxFileSize / (1024 * 1024)).toFixed(2);
+      const error = `File exceeds ${sizeMB}MB size limit`;
       handleError(error);
       return false;
     }
@@ -49,8 +51,11 @@ export default function VideoUploadForm({
   };
 
   const startConversion = () => {
-    if (!selectedFile || !validateFile(selectedFile)) {
-      setStatus('idle');
+    if (!selectedFile) {
+      return;
+    }
+
+    if (!validateFile(selectedFile)) {
       return;
     }
 
@@ -135,6 +140,7 @@ export default function VideoUploadForm({
     setUploadProgress(0);
     setUploadBytes(0);
     setErrorMessage(null);
+    setResetTrigger((prev) => prev + 1);
   };
 
   const handleReset = () => {
@@ -149,27 +155,26 @@ export default function VideoUploadForm({
     <form role="form" className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">Video Upload</h2>
 
-      {status === 'idle' && (
-        <>
-          <FileInput
-            onFileSelect={handleFileSelect}
-            onError={handleError}
-            accept="video/webm,video/mp4"
-            maxSize={maxFileSize}
-            selectedFileName={selectedFile?.name}
-          />
+      <FileInput
+        onFileSelect={handleFileSelect}
+        onError={handleError}
+        accept="video/webm,video/mp4"
+        maxSize={maxFileSize}
+        selectedFileName={status === 'idle' ? selectedFile?.name : undefined}
+        resetTrigger={resetTrigger}
+      />
 
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={handleUploadClick}
-              disabled={!selectedFile}
-              className="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              Upload
-            </button>
-          </div>
-        </>
+      {status === 'idle' && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={handleUploadClick}
+            disabled={!selectedFile}
+            className="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            Upload
+          </button>
+        </div>
       )}
 
       {status === 'converting' && (

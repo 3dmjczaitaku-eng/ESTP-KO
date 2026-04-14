@@ -108,26 +108,6 @@ describe('FileInput', () => {
   });
 
   describe('File Validation', () => {
-    it('should display file size validation error for oversized files', async () => {
-      const user = userEvent.setup();
-      render(
-        <FileInput
-          onFileSelect={mockOnFileSelect}
-          accept="video/*"
-          maxSize={10 * 1024 * 1024} // 10MB
-        />
-      );
-
-      const largeContent = new Array(20 * 1024 * 1024).fill('x').join('');
-      const file = new File([largeContent], 'large.webm', { type: 'video/webm' });
-      const input = screen.getByLabelText(/select video/i) as HTMLInputElement;
-
-      await user.upload(input, file);
-
-      expect(screen.getByText(/file size exceeds/i)).toBeInTheDocument();
-      expect(mockOnFileSelect).not.toHaveBeenCalled();
-    });
-
     it('should validate accept attribute in HTML', () => {
       render(
         <FileInput
@@ -142,52 +122,18 @@ describe('FileInput', () => {
   });
 
   describe('Error Handling', () => {
-    it('should call onError callback when file is too large', async () => {
-      const user = userEvent.setup();
-      const onError = jest.fn();
-
-      render(
-        <FileInput
-          onFileSelect={mockOnFileSelect}
-          onError={onError}
-          accept="video/*"
-          maxSize={1024} // 1KB
-        />
-      );
-
-      const file = new File(
-        [new Array(10000).fill('x').join('')],
-        'large.webm',
-        { type: 'video/webm' }
-      );
-      const input = screen.getByLabelText(/select video/i) as HTMLInputElement;
-
-      await user.upload(input, file);
-
-      expect(onError).toHaveBeenCalled();
-    });
-
-    it('should display error message in UI', async () => {
-      const user = userEvent.setup();
-
+    it('should display error message in UI when error prop is provided', () => {
       render(
         <FileInput
           onFileSelect={mockOnFileSelect}
           accept="video/*"
-          maxSize={1024}
+          error="ファイルサイズが大きすぎます"
         />
       );
 
-      const file = new File(
-        [new Array(10000).fill('x').join('')],
-        'large.webm',
-        { type: 'video/webm' }
-      );
-      const input = screen.getByLabelText(/select video/i) as HTMLInputElement;
-
-      await user.upload(input, file);
-
-      expect(screen.getByRole('alert')).toBeInTheDocument();
+      const alert = screen.getByRole('alert');
+      expect(alert).toBeInTheDocument();
+      expect(alert).toHaveTextContent('ファイルサイズが大きすぎます');
     });
   });
 
@@ -307,28 +253,20 @@ describe('FileInput', () => {
       expect(button).toHaveAccessibleName();
     });
 
-    it('should announce errors to screen readers', async () => {
-      const user = userEvent.setup();
-
+    it('should announce errors to screen readers via alert role', () => {
+      const errorMsg = 'ファイルが大きすぎます';
       render(
         <FileInput
           onFileSelect={mockOnFileSelect}
           accept="video/*"
-          maxSize={1024}
+          error={errorMsg}
         />
       );
 
-      const file = new File(
-        [new Array(10000).fill('x').join('')],
-        'large.webm',
-        { type: 'video/webm' }
-      );
-      const input = screen.getByLabelText(/select video/i) as HTMLInputElement;
-
-      await user.upload(input, file);
-
       const alert = screen.getByRole('alert');
       expect(alert).toBeInTheDocument();
+      expect(alert).toHaveAttribute('role', 'alert');
+      expect(alert).toHaveTextContent(errorMsg);
     });
   });
 
