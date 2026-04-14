@@ -1,3 +1,15 @@
+// React 19 compatibility patch - MUST be before any testing-library imports
+try {
+  const React = require('react')
+  const ReactDOMTestUtils = require('react-dom/test-utils')
+  // Ensure act is available for testing-library
+  if (!React.act && ReactDOMTestUtils.act) {
+    React.act = ReactDOMTestUtils.act
+  }
+} catch (e) {
+  console.warn('Failed to patch React.act:', e.message)
+}
+
 // jest-dom adds custom jest matchers for asserting on DOM nodes.
 // allows you to do things like:
 // expect(element).toHaveTextContent(/react/i)
