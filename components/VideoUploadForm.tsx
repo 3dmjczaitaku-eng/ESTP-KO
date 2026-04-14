@@ -162,6 +162,7 @@ export default function VideoUploadForm({
         maxSize={maxFileSize}
         selectedFileName={status === 'idle' ? selectedFile?.name : undefined}
         resetTrigger={resetTrigger}
+        error={status === 'idle' && errorMessage ? errorMessage : null}
       />
 
       {status === 'idle' && (
