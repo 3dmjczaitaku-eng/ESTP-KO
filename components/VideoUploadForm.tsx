@@ -14,6 +14,14 @@ interface VideoUploadFormProps {
   maxFileSize?: number;
 }
 
+interface ProgressEvent {
+  jobId: string;
+  phase: 'Converting' | 'Uploading' | 'Completed';
+  progress: number;
+  timestamp: number;
+  error?: string;
+}
+
 export default function VideoUploadForm({
   onUploadComplete,
   onError,
@@ -26,8 +34,7 @@ export default function VideoUploadForm({
   const [uploadBytes, setUploadBytes] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
-  const conversionIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const uploadIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
@@ -50,7 +57,7 @@ export default function VideoUploadForm({
     return true;
   };
 
-  const startConversion = () => {
+  const startConversion = async () => {
     if (!selectedFile) {
       return;
     }
@@ -61,74 +68,92 @@ export default function VideoUploadForm({
 
     setStatus('converting');
     setConversionProgress(0);
+    setUploadProgress(0);
+    setUploadBytes(0);
     setErrorMessage(null);
 
-    let currentProgress = 0;
-    conversionIntervalRef.current = setInterval(() => {
-      currentProgress += Math.random() * 50;
-      if (currentProgress >= 100) {
-        currentProgress = 100;
-        setConversionProgress(100);
-        if (conversionIntervalRef.current) {
-          clearInterval(conversionIntervalRef.current);
-        }
-        // Brief delay to let tests capture the completed state
-        setTimeout(() => {
-          setStatus('uploading');
-          setUploadProgress(0);
-          setUploadBytes(0);
-        }, 200);
-      } else {
-        setConversionProgress(currentProgress);
+    try {
+      // 1. Upload file to server
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || 'Upload failed');
       }
-    }, 150);
+
+      const { jobId } = await uploadResponse.json();
+
+      // 2. Connect to SSE endpoint for progress updates
+      const eventSource = new EventSource(`/api/progress/${jobId}`);
+      eventSourceRef.current = eventSource;
+
+      eventSource.onmessage = (event) => {
+        try {
+          const progressEvent: ProgressEvent = JSON.parse(event.data);
+
+          if (progressEvent.error) {
+            handleError(progressEvent.error);
+            eventSource.close();
+            return;
+          }
+
+          if (progressEvent.phase === 'Converting') {
+            setStatus('converting');
+            setConversionProgress(progressEvent.progress);
+          } else if (progressEvent.phase === 'Uploading') {
+            setStatus('uploading');
+            setUploadProgress(progressEvent.progress);
+            if (selectedFile) {
+              setUploadBytes((progressEvent.progress / 100) * selectedFile.size);
+            }
+          } else if (progressEvent.phase === 'Completed') {
+            setStatus('completed');
+            setConversionProgress(100);
+            setUploadProgress(100);
+            if (selectedFile) {
+              setUploadBytes(selectedFile.size);
+              onUploadComplete({
+                originalFile: selectedFile,
+                convertedFormat: 'webm',
+              });
+            }
+            eventSource.close();
+          }
+        } catch (error) {
+          console.error('Error parsing progress event:', error);
+        }
+      };
+
+      eventSource.onerror = () => {
+        handleError('Connection lost during conversion');
+        eventSource.close();
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Conversion failed';
+      handleError(errorMessage);
+    }
   };
 
+  // Cleanup EventSource on unmount or when conversion ends
   useEffect(() => {
-    if (status === 'uploading') {
-      let currentProgress = 0;
-      const totalBytes = selectedFile?.size || 1000;
-      let currentBytes = 0;
-
-      uploadIntervalRef.current = setInterval(() => {
-        currentProgress += Math.random() * 25;
-        currentBytes += Math.random() * (totalBytes * 0.025);
-
-        if (currentProgress >= 100) {
-          currentProgress = 100;
-          currentBytes = totalBytes;
-          setUploadProgress(100);
-          setUploadBytes(totalBytes);
-          if (uploadIntervalRef.current) {
-            clearInterval(uploadIntervalRef.current);
-          }
-          setStatus('completed');
-          if (selectedFile) {
-            onUploadComplete({
-              originalFile: selectedFile,
-              convertedFormat: 'mp4',
-            });
-          }
-        } else {
-          setUploadProgress(currentProgress);
-          setUploadBytes(Math.min(currentBytes, totalBytes));
-        }
-      }, 200);
-    }
-
     return () => {
-      if (uploadIntervalRef.current) {
-        clearInterval(uploadIntervalRef.current);
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
     };
-  }, [status, selectedFile]);
+  }, []);
 
   const handleCancel = () => {
-    if (conversionIntervalRef.current) {
-      clearInterval(conversionIntervalRef.current);
-    }
-    if (uploadIntervalRef.current) {
-      clearInterval(uploadIntervalRef.current);
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
     resetForm();
   };

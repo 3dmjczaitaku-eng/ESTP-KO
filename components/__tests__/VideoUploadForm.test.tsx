@@ -3,6 +3,91 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import VideoUploadForm from '../VideoUploadForm';
 
+// Mock EventSource for SSE
+class MockEventSource {
+  url: string;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  readyState = 1;
+  private intervalId: NodeJS.Timeout | null = null;
+
+  constructor(url: string) {
+    this.url = url;
+    // Simulate SSE progress events
+    setTimeout(() => this.simulateProgress(), 100);
+  }
+
+  private simulateProgress() {
+    const phases = ['Converting', 'Uploading', 'Completed'] as const;
+
+    let currentPhaseIndex = 0;
+    let phaseProgress = 0;
+    let ticksInPhase = 0;
+
+    this.intervalId = setInterval(() => {
+      if (currentPhaseIndex >= phases.length) {
+        if (this.intervalId) clearInterval(this.intervalId);
+        this.close();
+        return;
+      }
+
+      const currentPhase = phases[currentPhaseIndex];
+
+      // Increment progress more aggressively to ensure we reach 100
+      if (currentPhase !== 'Completed') {
+        ticksInPhase++;
+        // Reach 100 in about 3-5 ticks per phase
+        phaseProgress = Math.min(100, phaseProgress + 25 + Math.random() * 15);
+      } else {
+        phaseProgress = 100;
+      }
+
+      const event = new MessageEvent('message', {
+        data: JSON.stringify({
+          jobId: 'test-job-123',
+          phase: currentPhase,
+          progress: Math.round(Math.min(100, phaseProgress)),
+          timestamp: Date.now(),
+        }),
+      });
+
+      if (this.onmessage) {
+        this.onmessage(event);
+      }
+
+      // Move to next phase when current is done
+      if (phaseProgress >= 100) {
+        currentPhaseIndex++;
+        phaseProgress = 0;
+        ticksInPhase = 0;
+      }
+    }, 150); // Increase tick rate for faster completion
+  }
+
+  close() {
+    this.readyState = 2;
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+  }
+}
+
+// Mock fetch
+global.fetch = jest.fn((url: string) => {
+  if (url === '/api/upload') {
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ jobId: 'test-job-123' }),
+    } as Response);
+  }
+  return Promise.reject(new Error('Unknown URL'));
+});
+
+// Mock EventSource
+const originalEventSource = global.EventSource;
+(global as any).EventSource = MockEventSource;
+
 describe('VideoUploadForm', () => {
   const mockOnUploadComplete = jest.fn();
   const mockOnError = jest.fn();
@@ -11,6 +96,11 @@ describe('VideoUploadForm', () => {
     mockOnUploadComplete.mockClear();
     mockOnError.mockClear();
     jest.clearAllMocks();
+    (global.fetch as jest.Mock).mockClear();
+  });
+
+  afterAll(() => {
+    (global as any).EventSource = originalEventSource;
   });
 
   describe('Component Rendering', () => {
@@ -390,7 +480,7 @@ describe('VideoUploadForm', () => {
         expect(mockOnUploadComplete).toHaveBeenCalledWith(
           expect.objectContaining({
             originalFile: expect.any(File),
-            convertedFormat: 'mp4',
+            convertedFormat: 'webm',
           })
         );
       }, { timeout: 5000 });
