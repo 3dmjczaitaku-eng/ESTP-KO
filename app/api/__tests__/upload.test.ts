@@ -7,12 +7,16 @@ import { jobQueue } from '@/lib/job-queue';
 
 jest.mock('@/lib/job-queue');
 jest.mock('@/lib/ffmpeg-converter');
+jest.mock('@/lib/conversion-service', () => ({
+  startConversionAsync: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-uuid-' + Math.random()),
 }));
 jest.mock('fs/promises', () => ({
   mkdir: jest.fn().mockResolvedValue(undefined),
   writeFile: jest.fn().mockResolvedValue(undefined),
+  unlink: jest.fn().mockResolvedValue(undefined),
 }));
 
 // Mock File class to add arrayBuffer method
@@ -156,6 +160,64 @@ describe('POST /api/upload', () => {
       expect.objectContaining({
         jobId: json.jobId,
         phase: expect.any(String),
+      })
+    );
+  });
+
+  it('should return 500 when formData parsing throws', async () => {
+    // Construct a request whose formData() rejects to trigger the outer catch
+    const request = new NextRequest('http://localhost:3000/api/upload', {
+      method: 'POST',
+    });
+    (request as any).formData = jest.fn(async () => {
+      throw new Error('Malformed multipart body');
+    });
+
+    const response = await POST(request as any);
+    expect(response.status).toBe(500);
+
+    const json = await response.json();
+    expect(json.error).toBe('Malformed multipart body');
+  });
+
+  it('should return 500 with generic message when non-Error thrown', async () => {
+    const request = new NextRequest('http://localhost:3000/api/upload', {
+      method: 'POST',
+    });
+    (request as any).formData = jest.fn(async () => {
+      // Throw non-Error to exercise the fallback branch
+      // eslint-disable-next-line @typescript-eslint/no-throw-literal
+      throw 'plain-string-error';
+    });
+
+    const response = await POST(request as any);
+    expect(response.status).toBe(500);
+
+    const json = await response.json();
+    expect(json.error).toBe('Internal server error');
+  });
+
+  it('should dispatch async conversion with jobId and tempPath', async () => {
+    const conversionService = require('@/lib/conversion-service');
+    const startSpy = conversionService.startConversionAsync as jest.Mock;
+    startSpy.mockClear();
+    startSpy.mockResolvedValue(undefined);
+
+    const formData = new FormData();
+    formData.append('file', new File(['x'], 'v.webm', { type: 'video/webm' }));
+    const request = new NextRequest('http://localhost:3000/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(202);
+    const json = await response.json();
+
+    expect(startSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: json.jobId,
+        inputPath: expect.stringContaining(`${json.jobId}.webm`),
       })
     );
   });

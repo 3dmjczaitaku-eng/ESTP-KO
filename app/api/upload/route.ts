@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs/promises';
 import path from 'path';
 import { jobQueue } from '@/lib/job-queue';
-import { convertVideoWithFFmpeg } from '@/lib/ffmpeg-converter';
+import { startConversionAsync } from '@/lib/conversion-service';
 
 // Security: Define allowed file types
 const ALLOWED_TYPES = ['video/webm', 'video/mp4'] as const;
@@ -11,7 +11,6 @@ const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
 // Storage directories
 const UPLOAD_DIR = path.join(process.cwd(), 'tmp/uploads');
-const OUTPUT_DIR = path.join(process.cwd(), 'tmp/outputs');
 
 /**
  * POST /api/upload
@@ -75,15 +74,8 @@ export async function POST(request: NextRequest) {
     });
 
     // 6. Start async conversion (fire and forget)
-    // This allows the response to return immediately while conversion happens in background
-    startConversionAsync(jobId, tempPath).catch((err) => {
-      // Update job with error state
-      jobQueue.updateJob(jobId, {
-        phase: 'Completed',
-        error: err instanceof Error ? err.message : 'Conversion failed',
-        completedAt: Date.now(),
-      });
-    });
+    // conversion-service never rejects — it reflects errors into job state.
+    void startConversionAsync({ jobId, inputPath: tempPath });
 
     // Return jobId for client to poll progress
     return NextResponse.json({ jobId }, { status: 202 });
@@ -99,79 +91,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * Background conversion process
- * Runs asynchronously after request returns
- */
-async function startConversionAsync(
-  jobId: string,
-  inputPath: string
-): Promise<void> {
-  const outputPath = path.join(OUTPUT_DIR, `${jobId}.webm`);
-
-  try {
-    // Ensure output directory exists
-    await fs.mkdir(OUTPUT_DIR, { recursive: true });
-
-    // Update job: Converting phase
-    jobQueue.updateJob(jobId, {
-      phase: 'Converting',
-      progress: 0,
-    });
-
-    // Convert video using FFmpeg
-    // Progress callback updates job queue
-    await convertVideoWithFFmpeg({
-      inputPath,
-      outputPath,
-      onProgress: (percent: number) => {
-        jobQueue.updateJob(jobId, {
-          phase: 'Converting',
-          progress: Math.min(percent, 99), // Keep at 99% until upload complete
-        });
-      },
-      timeoutMs: 300000, // 5 minutes
-    });
-
-    // Update job: Uploading phase
-    jobQueue.updateJob(jobId, {
-      phase: 'Uploading',
-      progress: 0,
-      outputPath,
-    });
-
-    // Simulate upload/save to storage
-    // In production: upload to cloud storage (S3, Cloudinary, etc)
-    // For now: just update progress
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Mark as completed
-    jobQueue.updateJob(jobId, {
-      phase: 'Completed',
-      progress: 100,
-      completedAt: Date.now(),
-    });
-
-    console.log(`✅ Conversion complete: ${jobId}`);
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Conversion failed';
-    console.error(`❌ Conversion error for ${jobId}:`, errorMessage);
-
-    // Update job with error
-    jobQueue.updateJob(jobId, {
-      phase: 'Completed',
-      error: errorMessage,
-      completedAt: Date.now(),
-    });
-
-    // Cleanup temp files
-    try {
-      await fs.unlink(inputPath);
-    } catch {
-      // Ignore cleanup errors
-    }
-
-    throw error;
-  }
-}
