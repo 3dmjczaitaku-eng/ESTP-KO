@@ -137,6 +137,85 @@ describe('FFmpeg Converter', () => {
       // Verify cleanup was attempted
       expect(mockFs.unlink).toHaveBeenCalled();
     });
+
+    it('should reject with timeout when ffmpeg callback never fires', async () => {
+      // Mock execFile to never call its callback (simulates hung process)
+      mockExecFile.mockImplementation(() => ({}) as any);
+
+      const promise = convertVideoWithFFmpeg({
+        inputPath: validPath,
+        outputPath: validOutputPath,
+        timeoutMs: 10,
+      });
+
+      await expect(promise).rejects.toThrow('FFmpeg timeout after 10ms');
+      // Cleanup should still be attempted on timeout
+      expect(mockFs.unlink).toHaveBeenCalled();
+    });
+
+    it('should ignore late execFile callback after timeout has fired', async () => {
+      // Capture the callback so we can invoke it AFTER the timeout rejects
+      let capturedCallback: ((err: Error | null) => void) | null = null;
+      mockExecFile.mockImplementation((cmd, args, callback) => {
+        capturedCallback = callback as (err: Error | null) => void;
+        return {} as any;
+      });
+
+      const promise = convertVideoWithFFmpeg({
+        inputPath: validPath,
+        outputPath: validOutputPath,
+        timeoutMs: 5,
+      });
+
+      // Expect the timeout rejection
+      await expect(promise).rejects.toThrow('FFmpeg timeout after 5ms');
+
+      // Now invoke the late callback — should be a no-op and NOT throw
+      // unhandled rejection (covers the `timedOut` early-return branch).
+      expect(() => {
+        capturedCallback?.(new Error('late ffmpeg error'));
+      }).not.toThrow();
+    });
+
+    it('should fall back to original output path when output dir realpath fails', async () => {
+      // First realpath call validates the input path (success)
+      // Second realpath call for output dir fails -> fallback branch
+      mockFs.realpath = jest
+        .fn()
+        .mockResolvedValueOnce(validPath) // for input validation
+        .mockRejectedValueOnce(new Error('ENOENT: output dir missing'));
+
+      mockExecFile.mockImplementation((cmd, args, callback) => {
+        setTimeout(() => callback(null), 0);
+        return {} as any;
+      });
+
+      const result = await convertVideoWithFFmpeg({
+        inputPath: validPath,
+        outputPath: validOutputPath,
+      });
+
+      // Output path should fall back to the raw outputPath argument
+      expect(result.outputPath).toBe(validOutputPath);
+    });
+
+    it('should reject when resolved output path is outside allowed dir', async () => {
+      // Input validation succeeds; output dir realpath resolves OUTSIDE allowed dir
+      mockFs.realpath = jest
+        .fn()
+        .mockResolvedValueOnce(validPath) // input validation
+        .mockResolvedValueOnce('/var/malicious'); // output dir realpath
+
+      await expect(
+        convertVideoWithFFmpeg({
+          inputPath: validPath,
+          outputPath: validOutputPath,
+        })
+      ).rejects.toThrow('Output path outside allowed directory');
+
+      // FFmpeg should never have been invoked
+      expect(mockExecFile).not.toHaveBeenCalled();
+    });
   });
 
   describe('extractPosterFrame', () => {
