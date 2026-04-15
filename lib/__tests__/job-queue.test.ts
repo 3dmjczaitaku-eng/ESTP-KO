@@ -17,13 +17,13 @@ describe('Job Queue', () => {
   };
 
   beforeEach(() => {
-    queue = new JobQueue();
-    jest.useFakeTimers();
+    // autoStart: false disables the setInterval so tests can drive
+    // cleanup deterministically via performCleanup().
+    queue = new JobQueue({ autoStart: false });
   });
 
   afterEach(() => {
     queue.destroy();
-    jest.useRealTimers();
   });
 
   describe('addJob', () => {
@@ -206,20 +206,176 @@ describe('Job Queue', () => {
     });
   });
 
-  describe('cleanup interval setup', () => {
-    it('should initialize cleanup interval in constructor', () => {
-      // Verify that destroy clears the interval
-      const job = { ...mockJob, phase: 'Completed', completedAt: Date.now() };
-      queue.addJob(job);
+  describe('performCleanup', () => {
+    it('should delete completed jobs older than retention window', () => {
+      const startTime = Date.now();
+      const oldJob: JobState = {
+        jobId: 'old-job',
+        phase: 'Completed',
+        progress: 100,
+        timestamp: startTime,
+        completedAt: startTime - 3700000, // 1h + 100s ago
+        error: null,
+      };
 
-      queue.destroy();
-      expect(queue.getAllJobs()).toHaveLength(0);
+      queue.addJob(oldJob);
+      const deleted = queue.performCleanup(startTime);
+
+      expect(deleted).toBe(1);
+      expect(queue.getJob('old-job')).toBeUndefined();
     });
 
-    it('should have cleanup interval configured for 10 minutes (600000ms)', () => {
-      // The setInterval is set in constructor with 600000ms interval
-      // This is verified implicitly by the destroy method clearing it successfully
-      expect(() => queue.destroy()).not.toThrow();
+    it('should not delete completed jobs less than 1 hour old', () => {
+      const startTime = Date.now();
+      const recentJob: JobState = {
+        jobId: 'recent-job',
+        phase: 'Completed',
+        progress: 100,
+        timestamp: startTime,
+        completedAt: startTime - 1800000, // 30 minutes ago
+        error: null,
+      };
+
+      queue.addJob(recentJob);
+      const deleted = queue.performCleanup(startTime);
+
+      expect(deleted).toBe(0);
+      expect(queue.getJob('recent-job')).toBeDefined();
+    });
+
+    it('should never delete jobs that are still in progress', () => {
+      const inProgressJob: JobState = {
+        jobId: 'in-progress-job',
+        phase: 'Converting',
+        progress: 50,
+        timestamp: Date.now(),
+        error: null,
+      };
+
+      queue.addJob(inProgressJob);
+      const deleted = queue.performCleanup();
+
+      expect(deleted).toBe(0);
+      expect(queue.getJob('in-progress-job')).toBeDefined();
+    });
+
+    it('should skip completed jobs missing completedAt timestamp', () => {
+      const jobWithoutTime: JobState = {
+        jobId: 'no-time-job',
+        phase: 'Completed',
+        progress: 100,
+        timestamp: Date.now(),
+        error: null,
+      };
+
+      queue.addJob(jobWithoutTime);
+      const deleted = queue.performCleanup();
+
+      expect(deleted).toBe(0);
+      expect(queue.getJob('no-time-job')).toBeDefined();
+    });
+
+    it('should only delete expired jobs while preserving others', () => {
+      const startTime = Date.now();
+      queue.addJob({
+        jobId: 'old-job',
+        phase: 'Completed',
+        progress: 100,
+        timestamp: startTime,
+        completedAt: startTime - 3700000,
+        error: null,
+      });
+      queue.addJob({
+        jobId: 'recent-job',
+        phase: 'Completed',
+        progress: 100,
+        timestamp: startTime,
+        completedAt: startTime - 1800000,
+        error: null,
+      });
+
+      const deleted = queue.performCleanup(startTime);
+
+      expect(deleted).toBe(1);
+      expect(queue.getJob('old-job')).toBeUndefined();
+      expect(queue.getJob('recent-job')).toBeDefined();
+    });
+
+    it('should respect custom retention window', () => {
+      const shortQueue = new JobQueue({
+        autoStart: false,
+        retentionMs: 1000, // 1 second retention
+      });
+      const now = Date.now();
+
+      shortQueue.addJob({
+        jobId: 'short-lived',
+        phase: 'Completed',
+        progress: 100,
+        timestamp: now,
+        completedAt: now - 2000, // 2 seconds ago
+        error: null,
+      });
+
+      const deleted = shortQueue.performCleanup(now);
+      expect(deleted).toBe(1);
+      shortQueue.destroy();
+    });
+  });
+
+  describe('automatic cleanup interval', () => {
+    it('should fire performCleanup on the configured interval', () => {
+      jest.useFakeTimers();
+      try {
+        const autoQueue = new JobQueue({
+          cleanupIntervalMs: 1000,
+          retentionMs: 500,
+        });
+        const spy = jest.spyOn(autoQueue, 'performCleanup');
+
+        jest.advanceTimersByTime(1000);
+        expect(spy).toHaveBeenCalledTimes(1);
+
+        jest.advanceTimersByTime(2000);
+        expect(spy).toHaveBeenCalledTimes(3);
+
+        autoQueue.destroy();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('should not start a second interval when startCleanupInterval is called twice', () => {
+      jest.useFakeTimers();
+      try {
+        const autoQueue = new JobQueue({ cleanupIntervalMs: 1000 });
+        const spy = jest.spyOn(autoQueue, 'performCleanup');
+
+        autoQueue.startCleanupInterval(); // should be a no-op
+        jest.advanceTimersByTime(1000);
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        autoQueue.destroy();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('should stop firing after destroy', () => {
+      jest.useFakeTimers();
+      try {
+        const autoQueue = new JobQueue({ cleanupIntervalMs: 1000 });
+        const spy = jest.spyOn(autoQueue, 'performCleanup');
+
+        jest.advanceTimersByTime(1000);
+        expect(spy).toHaveBeenCalledTimes(1);
+
+        autoQueue.destroy();
+        jest.advanceTimersByTime(5000);
+        expect(spy).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 
