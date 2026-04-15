@@ -11,6 +11,12 @@ const customJestConfig = {
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    // Three.js ESM → use hand-written mock (jsdom has no WebGL)
+    '^three$': '<rootDir>/__mocks__/three.ts',
+    // GSAP: use identity mock so ScrollTrigger calls are no-ops in tests
+    '^gsap$': '<rootDir>/__mocks__/gsap.ts',
+    '^gsap/(.*)$': '<rootDir>/__mocks__/gsap.ts',
+    '^@gsap/react$': '<rootDir>/__mocks__/@gsap/react.ts',
   },
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/\\.claude/', '<rootDir>/\\.claire/'],
   collectCoverageFrom: [
