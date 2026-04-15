@@ -216,6 +216,136 @@ describe('FFmpeg Converter', () => {
       // FFmpeg should never have been invoked
       expect(mockExecFile).not.toHaveBeenCalled();
     });
+
+    it('should handle complex path traversal patterns', async () => {
+      // Test multiple traversal patterns that might evade simple checks
+      const maliciousPaths = [
+        '../../../etc/passwd',
+        '../../var/lib/shadow',
+        '/tmp/../../../etc/hosts',
+      ];
+
+      for (const maliciousPath of maliciousPaths) {
+        mockFs.realpath = jest
+          .fn()
+          .mockResolvedValue('/etc/passwd');
+
+        await expect(
+          convertVideoWithFFmpeg({
+            inputPath: maliciousPath,
+            outputPath: validOutputPath,
+          })
+        ).rejects.toThrow('Path outside allowed directory');
+      }
+    });
+
+    it('should reject paths with symlink escape attempts', async () => {
+      // Symlink within allowed dir pointing outside -> realpath resolves it
+      mockFs.realpath = jest
+        .fn()
+        .mockResolvedValue('/var/tmp/outside'); // symlink resolved to outside
+
+      await expect(
+        convertVideoWithFFmpeg({
+          inputPath: `${basePath}/symlink-to-etc`,
+          outputPath: validOutputPath,
+        })
+      ).rejects.toThrow('Path outside allowed directory');
+
+      // Verify realpath was called (symlink resolution)
+      expect(mockFs.realpath).toHaveBeenCalled();
+    });
+
+    it('should continue cleanup even if unlink fails', async () => {
+      const ffmpegError = new Error('FFmpeg process failed');
+
+      mockExecFile.mockImplementation((cmd, args, callback) => {
+        setTimeout(() => callback(ffmpegError), 0);
+        return {} as any;
+      });
+
+      // Make unlink fail
+      mockFs.unlink = jest.fn().mockRejectedValue(new Error('EACCES: permission denied'));
+
+      // Should still reject with original FFmpeg error, not cleanup error
+      await expect(
+        convertVideoWithFFmpeg({
+          inputPath: validPath,
+          outputPath: validOutputPath,
+        })
+      ).rejects.toThrow('FFmpeg process failed');
+
+      // Verify cleanup was attempted despite failure
+      expect(mockFs.unlink).toHaveBeenCalled();
+    });
+
+    it('should pass onProgress callback with correct parameters', async () => {
+      const onProgressMock = jest.fn();
+
+      mockExecFile.mockImplementation((cmd, args, callback) => {
+        setTimeout(() => callback(null), 0);
+        return {} as any;
+      });
+
+      await convertVideoWithFFmpeg({
+        inputPath: validPath,
+        outputPath: validOutputPath,
+        onProgress: onProgressMock,
+      });
+
+      // Verify onProgress was called with 100 on success
+      expect(onProgressMock).toHaveBeenCalledWith(100);
+    });
+
+    it('should not invoke onProgress if callback is undefined', async () => {
+      mockExecFile.mockImplementation((cmd, args, callback) => {
+        setTimeout(() => callback(null), 0);
+        return {} as any;
+      });
+
+      // Should not throw when onProgress is undefined
+      const result = await convertVideoWithFFmpeg({
+        inputPath: validPath,
+        outputPath: validOutputPath,
+        onProgress: undefined,
+      });
+
+      expect(result.outputPath).toBeDefined();
+    });
+
+    it('should verify output file stat and return correct size', async () => {
+      const expectedSize = 2048000;
+
+      mockExecFile.mockImplementation((cmd, args, callback) => {
+        setTimeout(() => callback(null), 0);
+        return {} as any;
+      });
+
+      mockFs.stat = jest
+        .fn()
+        .mockResolvedValue({ size: expectedSize } as any);
+
+      const result = await convertVideoWithFFmpeg({
+        inputPath: validPath,
+        outputPath: validOutputPath,
+      });
+
+      expect(mockFs.stat).toHaveBeenCalled();
+      expect(result.size).toBe(expectedSize);
+    });
+
+    it('should use custom timeout value when provided', async () => {
+      mockExecFile.mockImplementation(() => ({}) as any);
+
+      const customTimeout = 100;
+      const promise = convertVideoWithFFmpeg({
+        inputPath: validPath,
+        outputPath: validOutputPath,
+        timeoutMs: customTimeout,
+      });
+
+      await expect(promise).rejects.toThrow(`FFmpeg timeout after ${customTimeout}ms`);
+    });
   });
 
   describe('extractPosterFrame', () => {
@@ -275,6 +405,82 @@ describe('FFmpeg Converter', () => {
 
       // Verify cleanup was attempted
       expect(mockFs.unlink).toHaveBeenCalled();
+    });
+
+    it('should handle path validation for input in extractPosterFrame', async () => {
+      // Mock realpath to reject validation for input path
+      mockFs.realpath = jest
+        .fn()
+        .mockRejectedValue(new Error('ENOENT: no such file'));
+
+      // Mock access to fail
+      mockFs.access = jest.fn().mockRejectedValue(new Error('ENOENT'));
+
+      await expect(
+        extractPosterFrame(
+          validPath,
+          validOutputPath,
+          60000
+        )
+      ).rejects.toThrow();
+    });
+
+    it('should use timeout parameter in extractPosterFrame', async () => {
+      mockExecFile.mockImplementation(() => ({}) as any);
+
+      const customTimeout = 100; // Use short timeout for testing
+      const promise = extractPosterFrame(
+        validPath,
+        validOutputPath,
+        customTimeout
+      );
+
+      await expect(promise).rejects.toThrow(`FFmpeg timeout after ${customTimeout}ms`);
+    }, 10000); // Increase test timeout to 10s
+
+    it('should reject when output path contains path traversal in extractPosterFrame', async () => {
+      const maliciousOutput = '/etc/malicious.jpg';
+
+      // Mock realpath for input to succeed
+      mockFs.realpath = jest
+        .fn()
+        .mockResolvedValue(validPath);
+
+      await expect(
+        extractPosterFrame(
+          validPath,
+          maliciousOutput,
+          60000
+        )
+      ).rejects.toThrow('Output path outside allowed directory');
+
+      // FFmpeg should never be invoked
+      expect(mockExecFile).not.toHaveBeenCalled();
+    });
+
+    it('should pass correct ffmpeg arguments for frame extraction', async () => {
+      mockExecFile.mockImplementation((cmd, args, callback) => {
+        setTimeout(() => callback(null), 0);
+        return {} as any;
+      });
+
+      // Mock realpath for input path
+      mockFs.realpath = jest
+        .fn()
+        .mockResolvedValue(validPath);
+
+      await extractPosterFrame(
+        validPath,
+        validOutputPath,
+        60000
+      );
+
+      // Verify ffmpeg args include scale filter
+      expect(mockExecFile).toHaveBeenCalledWith(
+        'ffmpeg',
+        expect.arrayContaining(['-vframes', '1', '-vf', 'scale=1920:-1']),
+        expect.any(Function)
+      );
     });
   });
 });
